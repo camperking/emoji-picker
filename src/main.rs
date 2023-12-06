@@ -70,7 +70,11 @@ impl Model for AppData {
         event.map(|app_event, _meta| match app_event {
             AppEvent::Search(search) => {
                 self.search = search.to_string();
-                self.filter = (self.group.clone(), self.skin_tone.clone(), search.to_string());
+                self.filter = (
+                    self.group.clone(),
+                    self.skin_tone.clone(),
+                    search.to_string(),
+                );
             }
             AppEvent::Group(group) => {
                 self.group = group.clone();
@@ -86,12 +90,10 @@ impl Model for AppData {
                 drop(clipboard);
             }
         });
-
     }
 }
 
 fn main() {
-
     Application::new(|cx| {
         cx.add_font_mem(include_bytes!("../assets/NotoColorEmoji-Regular.ttf"));
         cx.set_default_font(&["Noto Color Emoji"]);
@@ -101,33 +103,37 @@ fn main() {
             group: Group::SmileysAndEmotion,
             skin_tone: SkinTone::Default,
             filter: (Group::SmileysAndEmotion, SkinTone::Default, String::new()),
-        }.build(cx);        
-        
-        VStack::new(cx, |cx| {
+        }
+        .build(cx);
 
+        VStack::new(cx, |cx| {
             HStack::new(cx, |cx| {
                 Textbox::new(cx, AppData::search)
                     .placeholder("Search")
-                    .on_edit(|cx, search| cx.emit(AppEvent::Search(search))).width(Stretch(1.0));
+                    .on_edit(|cx, search| cx.emit(AppEvent::Search(search)))
+                    .width(Stretch(1.0));
 
                 Dropdown::new(
                     cx,
+                    |cx| Label::new(cx, "🖖"),
                     |cx| {
-                        Label::new(cx, "🖖")
-                    },
-                    |cx| {
-
-                        fn dropdown_item<'a>(cx: &'a mut Context, label: &'a str, skin_tone: SkinTone) -> Handle<'a, Label> {
-                            Label::new(cx, label).on_press(move |cx| {
-                                cx.emit(AppEvent::SkinTone(skin_tone.clone()));
-                                cx.emit(PopupEvent::Close);
-                            })
-                            .child_space(Pixels(8.0))
-                            .on_hover(|cx| {
-                                cx.set_background_color(Color::rgba(0, 0, 0, 10));
-                            }).on_hover_out(|cx| {
-                                cx.set_background_color(Color::rgba(0, 0, 0, 0));
-                            })
+                        fn dropdown_item<'a>(
+                            cx: &'a mut Context,
+                            label: &'a str,
+                            skin_tone: SkinTone,
+                        ) -> Handle<'a, Label> {
+                            Label::new(cx, label)
+                                .on_press(move |cx| {
+                                    cx.emit(AppEvent::SkinTone(skin_tone.clone()));
+                                    cx.emit(PopupEvent::Close);
+                                })
+                                .child_space(Pixels(8.0))
+                                .on_hover(|cx| {
+                                    cx.set_background_color(Color::rgba(0, 0, 0, 10));
+                                })
+                                .on_hover_out(|cx| {
+                                    cx.set_background_color(Color::rgba(0, 0, 0, 0));
+                                })
                         }
 
                         dropdown_item(cx, "🖖", SkinTone::Default);
@@ -139,33 +145,40 @@ fn main() {
                     },
                 )
                 .max_width(Pixels(38.0));
-
             })
             .width(Stretch(1.0))
             .height(Auto);
 
             HStack::new(cx, |cx| {
-
-                fn group_button<'a>(cx: &'a mut Context, group: Group, emoji: &'a str) -> Handle<'a, Button> {
+                fn group_button<'a>(
+                    cx: &'a mut Context,
+                    group: Group,
+                    emoji: &'a str,
+                ) -> Handle<'a, Button> {
                     let group_clone = group.clone();
-                    Button::new(cx, move |cx| {
-                        let group = group_clone.clone();
-                        cx.emit(AppEvent::Group(group))
-                    }, |cx| {
-                        Label::new(cx, emoji)
-                    })
+                    Button::new(
+                        cx,
+                        move |cx| {
+                            let group = group_clone.clone();
+                            cx.emit(AppEvent::Group(group))
+                        },
+                        |cx| Label::new(cx, emoji),
+                    )
                     .tooltip(|cx| {
-                        Label::new(cx, match group {
-                            Group::SmileysAndEmotion => "Smileys & Emotion",
-                            Group::PeopleAndBody => "People & Body",
-                            Group::AnimalsAndNature => "Animals & Nature",
-                            Group::FoodAndDrink => "Food & Drink",
-                            Group::TravelAndPlaces => "Travel & Places",
-                            Group::Activities => "Activities",
-                            Group::Objects => "Objects",
-                            Group::Symbols => "Symbols",
-                            Group::Flags => "Flags",
-                        });
+                        Label::new(
+                            cx,
+                            match group {
+                                Group::SmileysAndEmotion => "Smileys & Emotion",
+                                Group::PeopleAndBody => "People & Body",
+                                Group::AnimalsAndNature => "Animals & Nature",
+                                Group::FoodAndDrink => "Food & Drink",
+                                Group::TravelAndPlaces => "Travel & Places",
+                                Group::Activities => "Activities",
+                                Group::Objects => "Objects",
+                                Group::Symbols => "Symbols",
+                                Group::Flags => "Flags",
+                            },
+                        );
                     })
                     .width(Stretch(1.0))
                 }
@@ -182,68 +195,76 @@ fn main() {
             })
             .width(Stretch(1.0))
             .height(Auto);
-    
-            Binding::new(cx, AppData::filter, |cx, data| {                    
-                    ScrollView::new(cx, 0.0, 0.0, false, true, move |cx| {
-                        let (group, skin_tone, search) = data.get(cx);
-                        let iter = emojis::iter().filter(|e| {
-                            let unicode_version = e.unicode_version() < emojis::UnicodeVersion::new(15, 0);
-        
-                            if search.is_empty() {
-                                unicode_version && e.group() == group_to_emoji_group(&group)
-                            } else {
-                                unicode_version && e.name().contains(&search) && search.chars().count() > 1
-                            }
-                        });
-        
-                        let items_per_row = 10;
-                        
-                        let emojis: Vec<&emojis::Emoji> = iter.collect();
-                        
-                        let mut row = emojis.len() / items_per_row;
 
-                        if row == 0 {
-                            row += 1;
+            Binding::new(cx, AppData::filter, |cx, data| {
+                ScrollView::new(cx, 0.0, 0.0, false, true, move |cx| {
+                    let (group, skin_tone, search) = data.get(cx);
+                    let iter = emojis::iter().filter(|e| {
+                        let unicode_version =
+                            e.unicode_version() < emojis::UnicodeVersion::new(15, 0);
+
+                        if search.is_empty() {
+                            unicode_version && e.group() == group_to_emoji_group(&group)
+                        } else {
+                            unicode_version
+                                && e.name().contains(&search)
+                                && search.chars().count() > 1
                         }
-        
-                        for i in 0..row {
-                            HStack::new(cx, |cx| {
-                                for j in 0..items_per_row {
-                                    let index = i * items_per_row + j;
+                    });
 
-                                    if index >= emojis.len() { break; }
+                    let items_per_row = 10;
 
-                                    let emoji = emojis[index];
+                    let emojis: Vec<&emojis::Emoji> = iter.collect();
 
-                                    let emoji_toned = &emoji.with_skin_tone(skin_tone_to_emoji_skin_tone(&skin_tone));
+                    let mut row = emojis.len() / items_per_row;
 
-                                    let emoji = match emoji_toned {
-                                        Some(emoji) => emoji,
-                                        None => emoji,
-                                    };
+                    if row == 0 {
+                        row += 1;
+                    }
 
-                                    Button::new(cx, |cx| cx.emit(AppEvent::Clipboard(emoji)), |cx| {
+                    for i in 0..row {
+                        HStack::new(cx, |cx| {
+                            for j in 0..items_per_row {
+                                let index = i * items_per_row + j;
 
-                                        Label::new(cx, &emoji.to_string()).font_size(24.0) // .width(Stretch(1.0))
-                                    })
-                                    .tooltip(|cx| {
-                                        Label::new(cx, emoji.name());
-                                    })
-                                    .width(Stretch(1.0))
-                                    .height(Pixels(48.0));
+                                if index >= emojis.len() {
+                                    break;
                                 }
-                            })
-                            .width(Stretch(1.0))
-                            .height(Auto);
-                        }
-                    }).size(Stretch(1.0));
-            });        
 
+                                let emoji = emojis[index];
+
+                                let emoji_toned =
+                                    &emoji.with_skin_tone(skin_tone_to_emoji_skin_tone(&skin_tone));
+
+                                let emoji = match emoji_toned {
+                                    Some(emoji) => emoji,
+                                    None => emoji,
+                                };
+
+                                Button::new(
+                                    cx,
+                                    |cx| cx.emit(AppEvent::Clipboard(emoji)),
+                                    |cx| {
+                                        Label::new(cx, &emoji.to_string()).font_size(24.0)
+                                        // .width(Stretch(1.0))
+                                    },
+                                )
+                                .tooltip(|cx| {
+                                    Label::new(cx, emoji.name());
+                                })
+                                .width(Stretch(1.0))
+                                .height(Pixels(48.0));
+                            }
+                        })
+                        .width(Stretch(1.0))
+                        .height(Auto);
+                    }
+                })
+                .size(Stretch(1.0));
+            });
         })
         .space(Pixels(10.0))
         .row_between(Pixels(10.0));
-
-
     })
     .title("Emoji Picker")
     .inner_size((640, 640))
