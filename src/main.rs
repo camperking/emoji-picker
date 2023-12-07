@@ -73,6 +73,7 @@ pub struct AppData {
     group: Group,
     skin_tone: SkinTone,
     filter: (Group, SkinTone, String),
+    clipboard: Clipboard,
 }
 
 pub enum AppEvent<'e> {
@@ -102,9 +103,7 @@ impl Model for AppData {
                 self.filter = (self.group.clone(), skin_tone.clone(), self.search.clone());
             }
             AppEvent::Clipboard(emoji) => {
-                let mut clipboard = Clipboard::new().unwrap();
-                clipboard.set_text(emoji.as_str()).unwrap();
-                drop(clipboard);
+                self.clipboard.set_text(emoji.as_str()).unwrap();
             }
         });
     }
@@ -138,6 +137,7 @@ fn main() {
             group: Group::SmileysAndEmotion,
             skin_tone: SkinTone::Default,
             filter: (Group::SmileysAndEmotion, SkinTone::Default, String::new()),
+            clipboard: Clipboard::new().unwrap(),
         }
         .build(cx);
 
