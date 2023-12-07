@@ -1,6 +1,23 @@
 use arboard::Clipboard;
+use clap::{Parser, ValueEnum};
 use emojis::Emoji;
 use vizia::prelude::*;
+
+#[derive(Clone, Debug, ValueEnum)]
+enum Theme {
+    System,
+    Light,
+    Dark,
+}
+
+/// Emoji Picker
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    // /// theme to use, light or dark, if not specified, system theme will be used
+    #[arg(short, long, default_value = "system")]
+    theme: Theme,
+}
 
 #[derive(Clone, Data, PartialEq)]
 pub enum Group {
@@ -95,6 +112,24 @@ impl Model for AppData {
 
 fn main() {
     Application::new(|cx| {
+        let args = Args::parse();
+
+        match args.theme {
+            Theme::System => {
+                cx.emit(EnvironmentEvent::SetThemeMode(AppTheme::System));
+            }
+            Theme::Light => {
+                cx.emit(EnvironmentEvent::SetThemeMode(AppTheme::BuiltIn(
+                    ThemeMode::LightMode,
+                )));
+            }
+            Theme::Dark => {
+                cx.emit(EnvironmentEvent::SetThemeMode(AppTheme::BuiltIn(
+                    ThemeMode::DarkMode,
+                )));
+            }
+        }
+
         cx.add_font_mem(include_bytes!("../assets/NotoColorEmoji-Regular.ttf"));
         cx.set_default_font(&["Noto Color Emoji"]);
 
